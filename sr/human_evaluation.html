@@ -1,0 +1,467 @@
+<!-- user study code based on https://gist.github.com/chitwansaharia/d9bb5bc09a68478484ea1984e33a5230. -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Experiment</title>
+
+    <style>
+      .hidden { display: none; }
+
+      #left, #right {
+        width: 256px;
+        height: 256px;
+      }
+
+      #src {
+        width: 64px;
+        height: 64px;
+      }
+
+      .next-button {
+        margin-top: 40px;
+      }
+
+    </style>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.5/css/bootstrap.min.css" integrity="sha384-AysaV+vQoT3kOAXZkl02PThvDr8HYKPZhNT5h/CXfBThSRXQ6jW5DO2ekP5ViFdi" crossorigin="anonymous">
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="row instructions">
+        <div class="col-md-12">
+          <p class="lead">
+          <ul>
+          <li>You will be shown <span class="total">50</span> triplets of images.</li>
+          <li>A low resolution image is shown in the middle.</li>
+          <li>Two high resolution version of the same image are shown on left and right.</li>
+          <li>Tell us which high resolution image is of better quality.</li>
+          <li>The images are shown for <span class="time">5</span> seconds. </li>
+          <li>Observe the images, and make a choice.</li>
+          <li> <b>NOTE</b>: You can only make a choice after the images disappear.
+          <br>
+          <br>
+          <br>
+          <li>You must complete all to get credit.</li>
+          <li>It will take about <b>10 minutes</b>.</li>
+          <li>Do not reload the page once you start.</li>
+          <br>
+
+          <p><button type="button" class="start-button btn btn-success">Start</button>
+        </div>
+      </div>
+      <div class="game hidden">
+        <h2 id="notify"></h2>
+        <h3 id="question"></h3>
+        <div class="row" style="margin-top: 25px">
+
+        <div class="col-md-5" style="display:table-cell; vertical-align:middle; text-align:center;">
+          <h6> High Resolution Image 1 </h6>
+          <label for="left-radio"><img id="left" src="src/0.png"></label>
+          <br/>
+          <input type="radio" name="img-radio" value="left"/>
+          <label for="radio">Select this?</label>
+        </div>
+
+        <div class="col-md-2" style="display:table-cell; vertical-align:middle; text-align:center; ">
+          <h6> Low Resolution Image </h6>
+          <label for="src-image"><img style="margin-top: 35px" id="src" src="truth/0.png"/></label>
+        </div>
+
+        <div class="col-md-5" style="display:table-cell; vertical-align:middle; text-align:center;">
+          <h6 style="text-align: center;"> High Resolution Image 2 </h6>
+          <label for="right-radio"><img id="right" src="f4/0.png"/></label>
+          <br/>
+          <input type="radio" name="img-radio" value="right"/>
+          <label for="radio">Select this?</label>
+        </div>
+
+        </div>
+        <h5 id="info"></h5>
+        <div class="row">
+          <div class="col-md-3">
+            <button type="button" class="next-button btn btn-success">Next</button>
+            <p><span id="completed">0</span>/<span class="total">50</span> completed.
+          </div>
+        </div>
+
+      </div>
+      <div class="done row hidden">
+        <div class="col-md-12">
+          <h2>You've completed the work! Thank you!</h2>
+          <p id="ajax-response"></p>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script>
+var debug = false;
+var isInPreviewMode = false; //window.location.search.indexOf('assignmentId=ASSIGNMENT_ID_NOT_AVAILABLE') >= 0 || '${taskId}' == '$' + '{taskId}';
+var index = 0;
+var ids =Array.from(Array(47).keys()).toString().split(",");
+// var ids = "${id0} ${id1} ${id2} ${id3} ${id4} ${id5} ${id6} ${id7} ${id8} ${id9} ${id10} ${id11} ${id12} ${id13} ${id14} ${id15} ${id16} ${id17} ${id18} ${id19} ${id20} ${id21} ${id22} ${id23} ${id24} ${id25} ${id26} ${id27} ${id28} ${id29} ${id30} ${id31} ${id32} ${id33} ${id34} ${id35} ${id36} ${id37} ${id38} ${id39} ${id40} ${id41} ${id42} ${id43} ${id44} ${id45} ${id46} ${id47} ${id48} ${id49}".split(" ")
+var algos = "f4 f1".split(" ");
+var algo = algos[0];
+// var base_url = "${base_url}";
+//var base_url = "/home/andi/Dokumente/Promotion/research_projects/sbgm/cvpr2022-rebuttal/user_study/sr";
+var base_url = "C:/Users/marin/Desktop/DesktopLenovo/STUDIUM MASTER/1.Semester/DV_SV_Exercises_Project/FortPrakCompVis/user_study/sr";
+var results = [];
+if (Math.random() > 0.5) {
+  var taskId = 1;
+} else {
+  var taskId = 2;
+}
+// taskId=2;
+var control = false;
+// start - countdown - feedback - answer - done
+var state = "start";
+var start;
+var showImageFor = 3000;
+var timeouthandle = null;
+
+var question = "Which of the two images is a better high quality version of the low resolution image in the middle?"
+var label_question = "Choose this";
+var save = true;
+
+var trivial_types = ["bicubic", "blurred"];
+
+if (debug) {
+  setTimeout(hideStartScreen, 1000);
+}
+
+function getRandomInt(max) {
+  return Math.floor(Math.random() * Math.floor(max));
+}
+
+$(document).ready(function() {
+  if (debug) {
+    ids = ids.slice(0, 2);
+  }
+
+  $('.total').text(ids.length);
+  $('.time').text(showImageFor / 1000);
+  $('label[for=radio]').text(label_question);
+});
+
+
+function truthUrl() {
+  return base_url + "/truth/0.png";
+}
+
+function srcUrl() {
+  return "f4/0.png";
+}
+
+function alg1Url() {
+  return base_url + "/f1/0.png";
+}
+
+function alg2Url() {
+  return base_url + "/f4/0.png";
+}
+
+
+
+function algoUrl() {
+  var algo_int = getRandomInt(algos.length);
+  algo = algos[algo_int];
+  // if (index < 5) {
+  //   control = false;
+  //   var random_int = getRandomInt(trivial_types.length);
+  //   return base_url + "/" + trivial_types[random_int] + "/" + ids[index] + ".png";
+  // }
+  // if (taskId == "sr" && index % 10 == 0) {
+  //   control = true;
+  //   console.log('Inserting refreshing example')
+  //   return base_url + "/bicubic/" + ids[index] + ".png";
+  // } else {
+  control = false;
+  //return base_url + "/" + algos[algo_int] + "/" + ids[index] + ".png";
+  return base_url + "/src/0.png";
+  // }
+
+
+}
+
+
+function assertNotPreviewMode() {
+  if (debug) {
+    return true;
+  }
+  if (!isInPreviewMode) {
+    return true;
+  }
+  alert('You must ACCEPT the HIT before you can submit the results.');
+  return true;
+}
+
+
+function changeBothImagesVisibility(show) {
+  var opacity = show ? 1 : 0;
+  $('#left').css({ opacity: opacity });
+  $('#right').css({ opacity: opacity });
+  $('#src').css({ opacity: opacity });
+}
+
+function changeImageVisibility(selector, show) {
+  var opacity = show ? 1 : 0;
+  $(selector).css({ opacity: opacity });
+}
+
+
+function prepareImages(cb) {
+  state = "countdown";
+  $("input:radio").prop('checked', false);
+  $("input:radio").attr('disabled', true);
+  //changeBothImagesVisibility(true);
+  $('#src').attr('src', srcUrl());
+  //$('#left').attr('src', truthUrl());
+  //$('#right').attr('src', algoUrl());
+
+
+  //if (taskId == 1){
+  //  if (Math.random() > 0.5) {
+  //   $('#left').attr('src', truthUrl());
+  //    $('#right').attr('src', algoUrl());
+  //  } else {
+  //    $('#right').attr('src', truthUrl());
+  //    $('#left').attr('src', algoUrl());
+ //   }
+ //} else {
+ //     if (Math.random() > 0.5) {
+ //     $('#left').attr('src', alg1Url());
+  //    $('#right').attr('src', alg2Url());
+  //  } else {
+ //     $('#right').attr('src', alg1Url());
+ //     $('#left').attr('src', alg2Url());
+ //   }
+ // }
+
+  //var loaded = 0;
+  //function displayWhenLoaded() {
+  //  loaded++;
+  //  if (loaded == 3) {
+  //    cb()
+  //  }
+  //}
+  //$('#left').load(displayWhenLoaded);
+  //$('#right').load(displayWhenLoaded);
+  //$('#src').load(displayWhenLoaded);
+}
+
+
+function doCountDown(countdown, cb) {
+  var msg = (countdown + "...");
+  if (index < 10) {
+    //msg = "Practice: " + msg;
+  }
+  notify(msg);
+
+  if (countdown > 0) {
+    setTimeout(function() {
+      countdown--;
+      doCountDown(countdown, cb);
+    }, 1000);
+  } else {
+    cb();
+  }
+}
+
+
+function displayImageSimultaneously() {
+  notify("You will be shown images in 3 seconds.");
+  doCountDown(3, function() {
+    display_question(question);
+    display_info("Take your time to observe the images. You can only make a choice once the images disappear.")
+    changeImageVisibility('#src', true);
+    changeImageVisibility('#left', true);
+    changeImageVisibility('#right', true);
+    $("input:radio").attr('disabled', true);
+    start = Date.now()
+
+    timeouthandle = setTimeout(function() {
+      changeImageVisibility('#src', false);
+      changeImageVisibility('#left', false);
+      changeImageVisibility('#right', false);
+      $("input:radio").attr('disabled', false);
+    }, showImageFor);
+
+  });
+}
+
+displayFn = displayImageSimultaneously;
+// displayFn = displaySrcForLimitedTime;
+
+
+function notify(msg) {
+  if (msg) {
+    $("#notify").text(msg);
+  } else {
+    $("#notify").html("&nbsp;");
+  }
+}
+
+function display_question(msg) {
+  if (msg) {
+    $("#question").text(msg);
+  } else {
+    $("#question").html("&nbsp;");
+  }
+}
+
+function display_info(msg) {
+  if (msg) {
+    $("#info").text(msg);
+  }
+}
+
+
+
+$('.start-button').click(function() {
+  console.log("Start!")
+  if (assertNotPreviewMode()) {
+    hideStartScreen()
+  }
+})
+
+
+$('.next-button').click(function() {
+  if (state == "feedback") {
+    return
+  }
+
+  var duration = Date.now() - start;
+
+  var radio = $("input[name='img-radio']:checked");
+  var img;
+  if (radio.val() == "left") {
+    img = $("#left")
+  } else if (radio.val() == "right") {
+    img = $("#right")
+  } else {
+    alert("nothing selected")
+    return false
+  }
+
+  var selectedUrl = img.attr("src");
+  if (taskId == 1) {
+    var correct = selectedUrl.indexOf("truth") >= 0;
+  } else {
+    if (selectedUrl.indexOf('f1') >= 0){
+      algo = 'f1';
+    }else{
+      algo = 'f4';
+    }
+  }
+
+  results.push({
+    control: control,
+    correct: correct,
+    id: ids[index],
+    selectedUrl: selectedUrl,
+    duration: duration,
+    algo: algo
+  });
+
+  $("input[name='img-radio'").prop('checked', false);
+
+  index++;
+  $("#completed").text(index);
+
+  clearTimeout(timeouthandle);
+
+  if (index >= ids.length) {
+    submit();
+    return
+  }
+
+  // if (index < 10) {
+  //   if (correct) {
+  //     notify("Correct Answer! try again")
+  //   } else {
+  //     notify("Wrong Answer! try again")
+  //   }
+  //   state = "feedback";
+  //   setTimeout(function() {
+  //     prepareImages(displayFn)
+  //   }, 2000);
+  //   return
+  // }
+
+  // Not yet complete. Go to the next image.
+  prepareImages(displayFn)
+
+  return true;
+});
+
+
+function submit() {
+  // They have finished! Let's submit
+  $(".game").hide();
+  $(".done").show();
+  state = "done";
+
+  // localStorage.setItem('results',JSON.stringify(results));
+  //
+  // // var aggregated = $("input[name=results]").val(JSON.stringify(results));
+  // var aggregated = JSON.stringify(results);
+
+
+  // do some logging
+  if (taskId == 1) {
+    var final_results = algos.reduce(function(obj,x){
+    obj[x] = {'fooled': 0, 'all': 0};
+    return obj;
+    }, {});
+
+    for (let i = 0; i < results.length; i++){
+      if (results[i]['control']){
+        continue;
+      }
+
+      final_results[results[i]['algo']]['all'] += 1;
+      if (!results[i]['correct']){
+        final_results[results[i]['algo']]['fooled'] += 1;
+      }
+    }
+
+    for (alg in final_results) {
+      console.log(`Model: ${alg}; Fool rate ${final_results[alg]['fooled']/final_results[alg]['all']}; sample size: ${final_results[alg]['all']}`);
+    }
+
+  } else {
+     var final_results = algos.reduce(function(obj,x){
+    obj[x] = 0;
+    return obj;
+    }, {});
+
+    var count = 0;
+
+    for (let i = 0; i < results.length; i++){
+      if (results[i]['control']){
+        continue;
+      }
+
+      count += 1;
+      final_results[results[i]['algo']]+=1;
+    }
+    for (alg in final_results) {
+      console.log(`Model: ${alg}; Preference: ${final_results[alg]/count}`);
+    }
+  }
+
+}
+
+
+function hideStartScreen() {
+  prepareImages(displayFn)
+  $(".instructions").toggleClass('hidden');
+  $(".game").toggleClass('hidden');
+}
+
+</script>
+</html>

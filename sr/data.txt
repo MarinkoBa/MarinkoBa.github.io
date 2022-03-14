@@ -1,0 +1,26 @@
+Model: f4; Fool rate 0.22727272727272727; sample size: 22
+Model: f1; Fool rate 0.12; sample size: 25
+
+Model: f4; Fool rate 0.3870967741935484; sample size: 31
+Model: f1; Fool rate 0.1875; sample size: 16
+
+Model: f4; Fool rate 0.25; sample size: 20
+Model: f1; Fool rate 0.18518518518518517; sample size: 27
+
+#######
+Model: f4; Fool rate 0.095; sample size: ?
+Model: f1; Fool rate 0.000; sample size: ?
+
+Model: f4; Fool rate 0.280; sample size: ?
+Model: f1; Fool rate 0.045; sample size: ?
+
+
+
+
+##### Task 2: Vs mode
+
+f4: 78.7%, f1: 21.3 %
+f4: 74.6%, f1: 25.4 %
+f4: 59.6%, f1: 40.4 %
+
+
